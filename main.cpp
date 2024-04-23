@@ -26,7 +26,12 @@ Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2) {
 	}
 	return result;
 };
+//減算
+Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
 
+	return{ v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
+
+};
 
 #pragma region MakeAffineMatrix
 
@@ -341,6 +346,10 @@ Vector3 Cross(const Vector3& v1, const Vector3& v2) {
 
 	return result;
 };
+float dotProduct(Vector3& v1, Vector3& v2) {
+	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+}
+
 
 static const int kRowHeight = 20;
 static const int kColumnWidth = 60;
@@ -380,6 +389,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 		/// 
 	
+
+
 		rotate.y += 0.05f;
 		if (rotate.y >= 3.14f*2) {
 
@@ -419,7 +430,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			screenVertices[i] = Transform(ndcVertex, viewportMatrix);
 		}
 
+		Vector3 a = Subtract(screenVertices[0], screenVertices[1]);
+		Vector3 b = Subtract(screenVertices[1], screenVertices[2]);
 
+		Vector3 crossAB = Cross(a, b);
+		float dot = dotProduct(cameraPosition, crossAB);
 		///
 		/// ↑更新処理ここまで
 		///
@@ -427,8 +442,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 		/// ↓描画処理ここから
 		///
+
+
 		VectorScreenPrintf(0, 0, cross, "Cross");
-		Novice::DrawTriangle((int)screenVertices[0].x, (int)screenVertices[0].y, (int)screenVertices[1].x, (int)screenVertices[1].y, (int)screenVertices[2].x, (int)screenVertices[2].y,RED,kFillModeSolid);
+		if (dot <=0) {
+		Novice::DrawTriangle((int)screenVertices[0].x, (int)screenVertices[0].y, (int)screenVertices[1].x, (int)screenVertices[1].y, (int)screenVertices[2].x, (int)screenVertices[2].y, RED, kFillModeSolid);
+		};
 		///
 		/// ↑描画処理ここまで
 		///
