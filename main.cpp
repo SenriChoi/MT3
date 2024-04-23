@@ -1,5 +1,7 @@
 #include <Novice.h>
 #include <assert.h>
+#include <cmath>
+
 const char kWindowTitle[] = "GC2A_06_ジョ_カエイ";
 
 struct Matrix4x4 {
@@ -36,22 +38,71 @@ Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
 	result.m[3][3] = 1.0f;
 
 	return result;
-}
-
-Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
-	Vector3 result;
-
-	result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + matrix.m[3][0];
-	result.y = vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + matrix.m[3][1];
-	result.z = vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + matrix.m[3][2];
-	float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + matrix.m[3][3];
+};
 
 
-	assert(w != 0.0f);
 
-	result.x /= w;
-	result.y /= w;
-	result.z /= w;
+//積
+Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2) {
+	Matrix4x4 result = {};
+
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			for (int k = 0; k < 4; k++) {
+				result.m[i][j] += m1.m[i][k] * m2.m[k][j];
+			}
+		}
+	}
+	return result;
+};
+
+Matrix4x4 MakeRotateXMatrix(float radian) {
+	Matrix4x4 result = {};
+	result.m[0][0] = 1;
+	result.m[3][3] = 1;
+	result.m[1][1] = std::cos(radian);
+	result.m[1][2] = std::sin(radian);
+	result.m[2][1] = -1 * std::sin(radian);
+	result.m[2][2] = std::cos(radian);
+
+	return result;
+};
+Matrix4x4 MakeRotateYMatrix(float radian) {
+	Matrix4x4 result = {};
+	result.m[1][1] = 1;
+	result.m[3][3] = 1;
+	result.m[0][0] = std::cos(radian);
+	result.m[0][2] = -1 * std::sin(radian);
+	result.m[2][0] = std::sin(radian);
+	result.m[2][2] = std::cos(radian);
+
+	return result;
+
+};
+Matrix4x4 MakeRotateZMatrix(float radian) {
+	Matrix4x4 result = {};
+	result.m[2][2] = 1;
+	result.m[3][3] = 1;
+	result.m[0][0] = std::cos(radian);
+	result.m[0][1] = std::sin(radian);
+	result.m[1][0] = -1 * std::sin(radian);
+	result.m[1][1] = std::cos(radian);
+
+	return result;
+
+};
+
+
+Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
+	Matrix4x4 result = {};
+	Matrix4x4 rotateXMatrix = MakeRotateXMatrix(rotate.x);
+	Matrix4x4 rotateYMatrix = MakeRotateYMatrix(rotate.y);
+	Matrix4x4 rotateZMatrix = MakeRotateZMatrix(rotate.z);
+
+	Matrix4x4 rotateXYZMatrix = Multiply(rotateXMatrix, Multiply(rotateYMatrix, rotateZMatrix));
+
+	result = Multiply(Multiply(MakeScaleMatrix(scale), rotateXYZMatrix), MakeTranslateMatrix(translate));
+
 
 	return result;
 };
@@ -61,19 +112,17 @@ static const int kColumnWidth = 60;
 
 
 void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix, const char* name) {
-	Novice::ScreenPrintf(x,y+ kRowHeight,"%s",name);
+	Novice::ScreenPrintf(x,y,"%s",name);
 	for (int row = 1; row <= 4; ++row) {
 		for (int column = 0; column <4; ++column) {
 				Novice::ScreenPrintf(x + column * kColumnWidth,
-					y + row * kRowHeight+ kRowHeight, "%6.02f", matrix.m[row - 1][column ]);
+					y + row * kRowHeight, "%6.02f", matrix.m[row - 1][column ]);
 			
 		}
 	}
 };
 
-void VectorScreenPrintf(int x, int y, const Vector3& vector3, const char* name) {
-	Novice::ScreenPrintf(x, y, "%6.02f  %6.02f  %6.02f  %s", vector3.x, vector3.y, vector3.z, name);
-}
+
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -99,20 +148,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 		/// 
-		Vector3 translate{ 4.1f,2.6f,0.8f };
-		Vector3 scale{ 1.5f,5.2f,7.3f };
-		Matrix4x4 translateMatrix = MakeTranslateMatrix(translate);
-		Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
-		Vector3 point{ 2.3f,3.8f,1.4f };
+		Vector3 scale{ 1.2f,0.79f,-2.1f };
+		Vector3 rotate{ 0.4f,1.43f,-0.8f };
+		Vector3 translate{ 2.7f,-4.15f,1.57f };
 
-		Matrix4x4 transformMatrix = {
-						 1.0f,2.0f,3.0f,4.0f,
-						 3.0f,1.0f,1.0f,2.0f,
-						 1.0f,4.0f,2.0f,3.0f,
-						 2.0f,2.2f,1.0f,3.0f };
 
-		Vector3 transformed = Transform(point, transformMatrix);
-
+		Matrix4x4 worldMatrix = MakeAffineMatrix(scale, rotate, translate);
 
 		///
 		/// ↑更新処理ここまで
@@ -122,9 +163,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 		/// 
-		VectorScreenPrintf(0, 0, transformed, "transformed");
-		MatrixScreenPrintf(0, 0, translateMatrix,"translateMatrix");
-		MatrixScreenPrintf(0, kRowHeight*5, scaleMatrix,"scaleMatrix");
+		MatrixScreenPrintf(0, 0, worldMatrix, "worldMatrix");
+	
 
 
 		///
