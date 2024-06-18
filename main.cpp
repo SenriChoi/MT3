@@ -4,12 +4,10 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <imgui.h>
+#include <cmath>
+
 
 const char kWindowTitle[] = "GC2A_06_ジョ_カエイ";
-
-struct Matrix4x4 {
-	float m[4][4];
-};
 
 struct Vector3 {
 	float x;
@@ -17,8 +15,49 @@ struct Vector3 {
 	float z;
 };
 
+struct Matrix4x4 {
+	float m[4][4];
+};
 
-//積
+Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
+	Vector3 result = { 0,0,0 };
+	result.x = v1.x - v2.x;
+	result.y = v1.y - v2.y;
+	result.z = v1.z - v2.z;
+	return result;
+
+};
+Vector3 Multiply(float scaler, const Vector3& v) {
+	Vector3 result = { 0,0,0 };
+	result.x = scaler * v.x;
+	result.y = scaler * v.y;
+	result.z = scaler * v.z;
+	return result;
+}
+Vector3 Add(const Vector3& v1, const Vector3& v2) {
+	Vector3 result = { 0,0,0 };
+	result.x = v1.x + v2.x;
+	result.y = v1.y + v2.y;
+	result.z = v1.z + v2.z;
+	return result;
+}
+Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
+	Vector3 result;
+
+	result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + matrix.m[3][0];
+	result.y = vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + matrix.m[3][1];
+	result.z = vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + matrix.m[3][2];
+	float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + matrix.m[3][3];
+
+
+	assert(w != 0.0f);
+
+	result.x /= w;
+	result.y /= w;
+	result.z /= w;
+
+	return result;
+};
 Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2) {
 	Matrix4x4 result = {};
 
@@ -31,13 +70,6 @@ Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2) {
 	}
 	return result;
 };
-//減算
-Vector3 Subtract(const Vector3& v1, const Vector3& v2) {
-
-	return{ v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
-
-};
-
 #pragma region MakeAffineMatrix
 
 Matrix4x4 MakeTranslateMatrix(const Vector3& translate) {
@@ -117,51 +149,10 @@ Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Ve
 };
 
 #pragma endregion
-
-#pragma region モデル画面
-
-Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip) {
-	Matrix4x4 result = {};
-	result.m[0][0] = (1 / aspectRatio) * (1 / std::tan(fovY / 2));
-	result.m[1][1] = (1 / std::tan(fovY / 2));
-	result.m[2][2] = farClip / (farClip - nearClip);
-	result.m[2][3] = 1;
-	result.m[3][2] = (-1 * nearClip * farClip) / (farClip - nearClip);
-
-	return result;
-};
-
-Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip) {
-	Matrix4x4 result = {};
-	result.m[0][0] = 2 / (right - left);
-	result.m[1][1] = 2 / (top - bottom);
-	result.m[2][2] = 1 / (farClip - nearClip);
-	result.m[3][0] = (left + right) / (left - right);
-	result.m[3][1] = (top + bottom) / (bottom - top);
-	result.m[3][2] = nearClip / (nearClip - farClip);
-	result.m[3][3] = 1;
-	return result;
-};
-
-Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth) {
-	Matrix4x4 result = {};
-
-	result.m[0][0] = width / 2;
-	result.m[1][1] = -1 * (height / 2);
-	result.m[2][2] = maxDepth - minDepth;
-	result.m[3][0] = left + (width / 2);
-	result.m[3][1] = top + (height / 2);
-	result.m[3][2] = minDepth;
-	result.m[3][3] = 1;
-
-	return result;
-}
-#pragma endregion
-
 #pragma region 逆行列
 //逆行列
 Matrix4x4 Inverse(const Matrix4x4& matrix) {
-	Matrix4x4 result{};
+	Matrix4x4 result = {};
 	float determinant = matrix.m[0][0] * (matrix.m[1][1] * matrix.m[2][2] * matrix.m[3][3] +
 		matrix.m[2][1] * matrix.m[3][2] * matrix.m[1][3] +
 		matrix.m[3][1] * matrix.m[1][2] * matrix.m[2][3] -
@@ -324,24 +315,73 @@ Matrix4x4 Inverse(const Matrix4x4& matrix) {
 	return result;
 };
 #pragma endregion
+float Dot(const Vector3& v1, const Vector3& v2) { return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z; }
 
-Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
-	Vector3 result;
+float Length(const Vector3& v) {
+	return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+}
 
-	result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + matrix.m[3][0];
-	result.y = vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + matrix.m[3][1];
-	result.z = vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + matrix.m[3][2];
-	float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + matrix.m[3][3];
+float LengthSquared(const Vector3& v) {
+	return Dot(v, v);
+}
+
+struct Line {
+	Vector3 origin;//始
+	Vector3 diff;//終
+};
+
+struct Ray {
+	Vector3 origin;//始
+	Vector3 diff;//終
+};
+
+struct Segment {
+	Vector3 origin;//始
+	Vector3 diff;//終
+};
 
 
-	assert(w != 0.0f);
+#pragma region モデル画面
 
-	result.x /= w;
-	result.y /= w;
-	result.z /= w;
+Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip) {
+	Matrix4x4 result = {};
+	result.m[0][0] = (1 / aspectRatio) * (1 / std::tan(fovY / 2));
+	result.m[1][1] = (1 / std::tan(fovY / 2));
+	result.m[2][2] = farClip / (farClip - nearClip);
+	result.m[2][3] = 1;
+	result.m[3][2] = (-1 * nearClip * farClip) / (farClip - nearClip);
 
 	return result;
 };
+
+Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip) {
+	Matrix4x4 result = {};
+	result.m[0][0] = 2 / (right - left);
+	result.m[1][1] = 2 / (top - bottom);
+	result.m[2][2] = 1 / (farClip - nearClip);
+	result.m[3][0] = (left + right) / (left - right);
+	result.m[3][1] = (top + bottom) / (bottom - top);
+	result.m[3][2] = nearClip / (nearClip - farClip);
+	result.m[3][3] = 1;
+	return result;
+};
+
+Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth) {
+	Matrix4x4 result = {};
+
+	result.m[0][0] = width / 2;
+	result.m[1][1] = -1 * (height / 2);
+	result.m[2][2] = maxDepth - minDepth;
+	result.m[3][0] = left + (width / 2);
+	result.m[3][1] = top + (height / 2);
+	result.m[3][2] = minDepth;
+	result.m[3][3] = 1;
+
+	return result;
+}
+#pragma endregion
+
+
 
 
 //網 グリッド
@@ -418,9 +458,6 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 
 
 //球
-
-
-
 struct Sphere
 {
 	Vector3 center;//中心点
@@ -476,6 +513,25 @@ void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, con
 static const int kRowHeight = 20;
 static const int kColumnWidth = 60;
 
+//正射影ベクトルと最近接点
+Vector3 Project(const Vector3& v1, const Vector3& v2) {
+	float dot = Dot(v1, v2);
+	float len = LengthSquared(v2);
+	float t = dot / len;
+	return Multiply(t, v2);
+}
+Vector3 Closest(const Vector3& point, const Segment& segment) {
+
+	Vector3 pointO = segment.origin;
+	Vector3 pointP = point;
+	Vector3 pointA = Subtract(pointP, pointO);
+	Vector3 pointB = segment.diff;
+
+
+	Vector3 closestPoint = Project(pointA, pointB);
+
+	return Add(pointO, closestPoint);
+}
 
 void VectorScreenPrintf(int x, int y, const Vector3& vector3, const char* name) {
 	Novice::ScreenPrintf(x, y, "%6.02f  %6.02f  %6.02f  %s", vector3.x, vector3.y, vector3.z, name);
@@ -489,9 +545,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraTranslate{ 0,1.9f,-6.49f };
 	Vector3 cameraRotate{ 0.26f,0.0f,0.0f };
 
-	Sphere sphere;
-	sphere.center = Vector3{ 0.0f,0.0f,0.0f };
-	sphere.radius = 0.5f;
+	Segment segment{ {-2.0f, -1.0f,0.0f},{3.0f,2.0f,2.0f} };
+	Vector3 point{ -1.5f,0.6f,0.6f };
 
 	// ライブラリの初期化
 	Novice::Initialize(kWindowTitle, 1280, 720);
@@ -516,12 +571,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	
 
 
-		ImGui::Begin("Window");
-		ImGui::DragFloat3("CameraTranslate", &cameraTranslate.x, 0.01f);
-		ImGui::DragFloat3("CameraRotate", &cameraRotate.x, 0.01f);
-		ImGui::DragFloat3("SphereCenter", &sphere.center.x, 0.01f);
-		ImGui::DragFloat("SphereRadius", &sphere.radius, 0.01f);
-		ImGui::End();
+
 	
 
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0f,1.0f }, rotate, translate);
@@ -531,6 +581,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0.0f,0.0f,1280.0f,720.0f,0.0f,1.0f);
 
+		Vector3 project = Project(Subtract(point, segment.origin), segment.diff);
+		Vector3 closestPoint = Closest(point, segment);
+
+		Sphere pointSphere{ point,0.01f };
+		Sphere closestPointSphere{ closestPoint,0.01f };
+
+		Vector3 start = Transform(Transform(segment.origin, worldViewProjectionMatrix), viewportMatrix);
+		Vector3 end = Transform(Transform(Add(segment.origin, segment.diff), worldViewProjectionMatrix), viewportMatrix);
+
+
+		ImGui::Begin("Window");
+
+		ImGui::InputFloat3("closestPoint", &closestPoint.x, "%.3f", ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputFloat3("CameraTranslate",&segment.origin.x, "%.3f", ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputFloat3("CameraRotate",&segment.diff.x, "%.3f", ImGuiInputTextFlags_ReadOnly);
+		ImGui::InputFloat3("Project", &project.x, "%.3f", ImGuiInputTextFlags_ReadOnly);
+		ImGui::End();
 
 
 	
@@ -543,7 +610,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
-		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix, BLUE);
+		Novice::DrawLine(int(start.x), int(start.y), int(end.x), int(end.y), WHITE);
+		DrawSphere(pointSphere, worldViewProjectionMatrix, viewportMatrix, BLUE);
+		DrawSphere(closestPointSphere, worldViewProjectionMatrix, viewportMatrix, BLACK);
 	
 		///
 		/// ↑描画処理ここまで
