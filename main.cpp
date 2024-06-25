@@ -6,19 +6,25 @@
 const char kWindowTitle[] = "GC2A_06_ジョ_カエイ";
 
 struct Plane{
-	Vector3 normal;//法线
-	float distance;//距离
+	Vector3 normal;//法線
+	float distance;//距離
 };
 
-bool IsCollision(const Sphere& sphere, const Plane& plane) {
-	Vector3 n = plane.normal;
-	Vector3 c = sphere.center;
-	float k = Dot(n, c) - plane.distance;
-	float distance = fabs(k);
-	if (distance > sphere.radius) {
+bool IsCollision(const Segment& segment, const Plane& plane) {
+	float dot = Dot(plane.normal, segment.diff);
+	if (dot == 0.0f) {
 		return false;
 	}
-	return true;
+	float t = (plane.distance - Dot(segment.origin, plane.normal)) / dot;
+
+	if (t < 0.0f || t > 1.0f) {
+		return false;
+	}
+	else
+	{
+		return true;
+
+	}
 }
 
 
@@ -68,7 +74,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraTranslate{ 0,1.9f,-6.49f };
 	Vector3 cameraRotate{ 0.26f,0.0f,0.0f };
 
-	Sphere sphere{ {0.0f,0.0f,0.0f},0.5f };
+	Segment segment{ {-0.5f, 0,-0.5f},{1.0f,1.0f,2.0f} };
 	Plane plane{ {0.0f,1.0f,0.0f},1.0f };
 
 	// ライブラリの初期化
@@ -99,9 +105,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewPortMatrix = MakeViewportMatrix(0, 0, 1280.0f, 720.0f, 0.0f, 1.0f);
 
+		Vector3 start = Transform(Transform(segment.origin, worldViewProjectionMatrix), viewPortMatrix);
+		Vector3 end = Transform(Transform(Add(segment.origin, segment.diff), worldViewProjectionMatrix), viewPortMatrix);
+
+
 		ImGui::Begin("Window");
-		ImGui::DragFloat3("sphere Position", &sphere.center.x, 0.01f);
-		ImGui::DragFloat("sphere radius", &sphere.radius, 0.01f);
+		ImGui::DragFloat3("segment Position", &segment.origin.x, 0.01f);
+		ImGui::DragFloat3("segment radius", &segment.diff.x, 0.01f);
 		ImGui::DragFloat3("Plane Normal", &plane.normal.x, 0.01f);
 		ImGui::DragFloat("Plane Distance", &plane.distance, 0.01f);
 		ImGui::End();
@@ -118,11 +128,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 		DrawGrid(worldViewProjectionMatrix, viewPortMatrix);
-		if (IsCollision(sphere, plane)) {
-			DrawSphere(sphere, worldViewProjectionMatrix, viewPortMatrix, RED);
+		if (IsCollision(segment, plane)) {
+			Novice::DrawLine(int(start.x), int(start.y), int(end.x), int(end.y), RED);
 		}
 		else {
-			DrawSphere(sphere, worldViewProjectionMatrix, viewPortMatrix, WHITE);
+			Novice::DrawLine(int(start.x), int(start.y), int(end.x), int(end.y), WHITE);
 		}
 		DrawPlane(plane, worldViewProjectionMatrix, viewPortMatrix, WHITE);
 
